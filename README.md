@@ -72,8 +72,8 @@ Create a bot, enable **Message Content Intent** if needed, invite with `Send Mes
 ```bash
 source venv/bin/activate
 
-# Test full pipeline on bundled EICAR sample alert (no live ES, no Discord)
-python poller.py --replay full_alert.json --dry-run
+# Test full pipeline on a saved alert JSON export (no live ES, no Discord)
+python poller.py --replay /path/to/alert.json --dry-run
 
 # One-shot live fetch; print results, do not post to Discord
 python poller.py --dry-run
@@ -124,7 +124,6 @@ journalctl --user -u ai-analyst.service -f   # user service
 | `triage/claude_agent.py` | Claude structured triage |
 | `discord_bot/bot.py` | Rich embeds + background poll loop |
 | `assets.py` | Host inventory lookup (edit `SEED_ASSETS` for your environment) |
-| `full_alert.json` | Sanitized EICAR sample alert for `--replay` testing |
 | `dedupe.db` | Incident deduplication (gitignored, created at runtime) |
 | `enrichment_cache.db` | API result cache (gitignored) |
 | `poller_state.json` | Last-processed alert timestamp (gitignored) |
