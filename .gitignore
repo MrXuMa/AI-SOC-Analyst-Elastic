@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+.env
+*.db
+poller_state.json
+
+# Local systemd units (generate from *.service.example)
+ai-analyst.service
+ai-analyst.user.service
