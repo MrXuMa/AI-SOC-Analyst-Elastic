@@ -127,23 +127,3 @@ journalctl --user -u ai-analyst.service -f   # user service
 | `dedupe.db` | Incident deduplication (gitignored, created at runtime) |
 | `enrichment_cache.db` | API result cache (gitignored) |
 | `poller_state.json` | Last-processed alert timestamp (gitignored) |
-
-## Publishing to GitHub
-
-When you're ready to push (not done automatically):
-
-```bash
-cd ai-analyst
-git init
-git add .
-git status   # verify .env, *.db, venv/ are NOT staged
-git commit -m "Initial commit: Elastic SOC triage bot"
-gh repo create ai-analyst --public --source=. --remote=origin
-git push -u origin main
-```
-
-**Before pushing:** confirm `git status` shows no `.env`, `*.db`, or `venv/` files staged.
-
-## License
-
-MIT (add a LICENSE file if you choose this license before publishing)
