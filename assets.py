@@ -5,10 +5,11 @@ DB_FILE = os.path.join(os.path.dirname(__file__), "assets.db")
 
 ASSET_COLUMNS = ("hostname", "ip", "role", "owner", "criticality")
 
-# Example inventory — edit for your environment, then run: python assets.py
+# Homelab asset inventory — used for alert enrichment context
 SEED_ASSETS = [
-    ("siem-host", "10.0.0.10", "siem", "ops", "high"),
-    ("workstation-01", "10.0.0.50", "endpoint", "user", "medium"),
+    ("siem-core", "100.96.150.2", "siem", "tfink", "high"),
+    ("fink", "100.123.111.89", "endpoint", "tfink", "high"),
+    ("tylers-macbook-pro", "100.105.202.108", "endpoint", "tfink", "high"),
 ]
 
 

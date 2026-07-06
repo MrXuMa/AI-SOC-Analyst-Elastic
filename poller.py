@@ -33,24 +33,59 @@ def _primary_technique_id(triage_result):
     return tags[0]["technique_id"] if tags else None
 
 
-def process_alert(hit):
+def process_alert(hit, seen_in_batch=None, *, skip_cross_batch_dedupe=False):
     summary = build_summary(hit)
+    incident_key = dedupe.build_incident_key(summary)
 
-    if dedupe.is_duplicate(summary):
+    if seen_in_batch is not None:
+        if incident_key in seen_in_batch:
+            print(
+                f"[skip] duplicate incident in batch: "
+                f"{summary.get('alert_name')} on {summary.get('host_name')}"
+            )
+            return None
+        seen_in_batch.add(incident_key)
+        if not skip_cross_batch_dedupe and dedupe.is_duplicate(summary):
+            print(
+                f"[skip] duplicate incident: "
+                f"{summary.get('alert_name')} on {summary.get('host_name')}"
+            )
+            return None
+    elif dedupe.is_duplicate(summary):
         print(f"[skip] duplicate incident: {summary.get('alert_name')} on {summary.get('host_name')}")
         return None
 
     alert_indicators = indicators.extract_indicators(summary)
     enrichment = gather_enrichment(alert_indicators)
     triage_result = triage_alert(summary, enrichment)
-    dedupe.record_technique(summary, _primary_technique_id(triage_result))
 
     return summary, enrichment, triage_result
 
 
+def _burst_incident_keys(hits):
+    """Incident keys that appear more than once in the same ES batch."""
+    counts = {}
+    for hit in hits:
+        key = dedupe.build_incident_key(build_summary(hit))
+        counts[key] = counts.get(key, 0) + 1
+    return {key for key, count in counts.items() if count > 1}
+
+
 def process_batch(since_iso, max_alerts=MAX_ALERTS_PER_BATCH):
     hits = fetch_new_alerts(since_iso, max_alerts=max_alerts)
-    results = [r for r in (process_alert(hit) for hit in hits) if r is not None]
+    seen_in_batch = set()
+    burst_keys = _burst_incident_keys(hits)
+    results = []
+    for hit in hits:
+        summary = build_summary(hit)
+        incident_key = dedupe.build_incident_key(summary)
+        result = process_alert(
+            hit,
+            seen_in_batch,
+            skip_cross_batch_dedupe=incident_key in burst_keys,
+        )
+        if result is not None:
+            results.append(result)
 
     new_checkpoint = hits[-1]["_source"]["@timestamp"] if hits else since_iso
     hit_cap = len(hits) == max_alerts

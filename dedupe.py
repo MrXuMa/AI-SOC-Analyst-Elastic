@@ -36,44 +36,51 @@ def build_incident_key(alert_summary: dict) -> str:
     return hashlib.sha256(raw_key.encode("utf-8")).hexdigest()
 
 def is_duplicate(alert_summary: dict) -> bool:
+    """Return True if this incident was already delivered within the dedupe window."""
     key = build_incident_key(alert_summary)
     now = time.time()
 
     conn = _get_conn()
     try:
         row = conn.execute(
-            "SELECT last_seen, occurrence_count FROM incidents WHERE incident_key = ?",
+            "SELECT last_seen FROM incidents WHERE incident_key = ?",
             (key,),
         ).fetchone()
 
-        if row is not None:
-            last_seen, occurrence_count = row
-            conn.execute(
-                "UPDATE incidents SET last_seen = ?, occurrence_count = ? WHERE incident_key = ?",
-                (now, occurrence_count + 1, key),
-            )
-            conn.commit()
-            return (now - last_seen) < DEDUPE_WINDOW_SECONDS
-        
-        conn.execute(
-            "INSERT INTO incidents "
-            "(incident_key, alert_id, first_seen, last_seen, occurrence_count, primary_technique_id) "
-            "VALUES (?, ?, ?, ?, 1, NULL)",
-            (key, alert_summary.get("id"), now, now),
-        )
-        conn.commit()
-        return False
+        if row is None:
+            return False
+
+        last_seen = row[0]
+        return (now - last_seen) < DEDUPE_WINDOW_SECONDS
     finally:
         conn.close()
 
-def record_technique(alert_summary: dict, technique_id: str) -> None:
+def mark_incident_seen(alert_summary: dict, technique_id: str | None = None) -> None:
+    """Record delivery only after Discord post succeeds."""
     key = build_incident_key(alert_summary)
+    now = time.time()
+    alert_id = alert_summary.get("id")
+
     conn = _get_conn()
     try:
-        conn.execute(
-            "UPDATE incidents SET primary_technique_id = ? WHERE incident_key = ?",
-            (technique_id, key),
-        )
+        row = conn.execute(
+            "SELECT occurrence_count FROM incidents WHERE incident_key = ?",
+            (key,),
+        ).fetchone()
+
+        if row is None:
+            conn.execute(
+                "INSERT INTO incidents "
+                "(incident_key, alert_id, first_seen, last_seen, occurrence_count, primary_technique_id) "
+                "VALUES (?, ?, ?, ?, 1, ?)",
+                (key, alert_id, now, now, technique_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE incidents SET alert_id = ?, last_seen = ?, occurrence_count = ?, "
+                "primary_technique_id = ? WHERE incident_key = ?",
+                (alert_id, now, row[0] + 1, technique_id, key),
+            )
         conn.commit()
     finally:
         conn.close()

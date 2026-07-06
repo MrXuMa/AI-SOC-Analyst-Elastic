@@ -127,9 +127,9 @@ def build_summary(hit):
     command_line = process.get("command_line")
     file_hash = safe_get(file, "hash", "sha256")
 
-    host_name = host.get("hostname")
+    host_name = host.get("hostname") or host.get("name")
     primary_ip = pick_primary_ip(host.get("ip"))
-    host_name_normalized = (host_name or host.get("name") or "").lower() or None
+    host_name_normalized = (host_name or "").lower() or None
     asset = lookup_asset(hostname=host_name_normalized, ip=primary_ip)
 
     return {
